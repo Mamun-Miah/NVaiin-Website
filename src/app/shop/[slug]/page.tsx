@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ShoppingBag } from 'lucide-react';
 import { useCartStore } from '@/lib/cart-store';
 import { toast } from 'sonner';
+import { ImageGallery } from '@/components/shop/ImageGallery';
 import { ProductCard } from '@/components/shop/ProductCard';
 import { SizeSelector } from '@/components/shop/SizeSelector';
 import { QuantitySelector } from '@/components/shop/QuantitySelector';
@@ -97,15 +96,75 @@ export default function ProductDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-nv-black">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pt-32 pb-24">
+        {/* Breadcrumb skeleton */}
+        <div className="px-4 sm:px-6 lg:px-10 pt-28">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-12 bg-nv-smoke animate-pulse rounded-sm" />
+            <div className="h-3 w-3 bg-nv-smoke animate-pulse rounded-sm" />
+            <div className="h-3 w-32 bg-nv-smoke animate-pulse rounded-sm" />
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 pb-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="aspect-[3/4] bg-nv-concrete animate-pulse" />
-            <div className="space-y-6">
-              <div className="h-4 bg-nv-concrete w-24 animate-pulse" />
-              <div className="h-12 bg-nv-concrete w-3/4 animate-pulse" />
-              <div className="h-8 bg-nv-concrete w-32 animate-pulse" />
-              <div className="h-4 bg-nv-concrete w-48 animate-pulse mt-8" />
-              <div className="h-12 bg-nv-concrete w-full animate-pulse mt-6" />
+            {/* Left — Image placeholder */}
+            <div className="bg-nv-concrete animate-pulse aspect-[3/4]" />
+
+            {/* Right — Detail skeleton */}
+            <div className="pt-4 lg:pt-0 space-y-8">
+              {/* Category label */}
+              <div className="h-4 w-28 bg-nv-smoke animate-pulse rounded-sm" />
+
+              {/* Product name */}
+              <div className="space-y-2">
+                <div className="h-10 md:h-12 w-3/4 bg-nv-smoke animate-pulse rounded-sm" />
+                <div className="h-10 md:h-12 w-1/2 bg-nv-smoke animate-pulse rounded-sm" />
+              </div>
+
+              {/* Price row */}
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-24 bg-nv-smoke animate-pulse rounded-sm" />
+                <div className="h-6 w-20 bg-nv-smoke animate-pulse rounded-sm" />
+              </div>
+
+              {/* Size section */}
+              <div className="space-y-3">
+                <div className="h-4 w-14 bg-nv-smoke animate-pulse rounded-sm" />
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div
+                      key={i}
+                      className="h-12 w-full bg-nv-smoke animate-pulse rounded-sm"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Quantity section */}
+              <div className="space-y-3">
+                <div className="h-4 w-24 bg-nv-smoke animate-pulse rounded-sm" />
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-nv-smoke animate-pulse rounded-sm" />
+                  <div className="h-12 w-16 bg-nv-smoke animate-pulse rounded-sm" />
+                  <div className="h-12 w-12 bg-nv-smoke animate-pulse rounded-sm" />
+                </div>
+              </div>
+
+              {/* Add to cart button */}
+              <div className="h-14 w-full bg-nv-smoke animate-pulse rounded-sm" />
+
+              {/* Shipping note */}
+              <div className="h-3 w-48 bg-nv-smoke animate-pulse rounded-sm" />
+
+              {/* Description section */}
+              <div className="space-y-3">
+                <div className="h-4 w-28 bg-nv-smoke animate-pulse rounded-sm" />
+                <div className="space-y-2">
+                  <div className="h-4 w-full bg-nv-smoke animate-pulse rounded-sm" />
+                  <div className="h-4 w-5/6 bg-nv-smoke animate-pulse rounded-sm" />
+                  <div className="h-4 w-3/4 bg-nv-smoke animate-pulse rounded-sm" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -159,33 +218,17 @@ export default function ProductDetailPage() {
       {/* Product Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Left — Product Image */}
+          {/* Left — Image Gallery */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="relative aspect-[3/4] bg-nv-concrete overflow-hidden"
           >
-            {product.images && product.images.length > 0 ? (
-              <Image
-                src={product.images[0]}
-                alt={product.name}
-                fill
-                unoptimized
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ShoppingBag className="w-16 h-16 text-nv-fog" />
-              </div>
-            )}
-            {!product.inStock && (
-              <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
-                <span className="font-anton text-3xl text-white uppercase">SOLD OUT</span>
-              </div>
-            )}
+            <ImageGallery
+              images={product.images || []}
+              alt={product.name}
+              inStock={product.inStock}
+            />
           </motion.div>
 
           {/* Right — Product Details */}

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, ChevronRight, Instagram } from 'lucide-react';
+import { Play, Pause, ChevronRight, ChevronDown, Instagram } from 'lucide-react';
 import gsap from 'gsap';
 
 import { SplitTextReveal } from '@/components/animations/SplitTextReveal';
@@ -64,6 +64,16 @@ const staggerContainer = {
 // ─── Viewport Config ─────────────────────────────────────────
 const viewOnce = { once: true, margin: '-100px' as const };
 
+// ─── Star Field Config ───────────────────────────────────────
+const STARS = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  left: `${Math.round(((i * 37 + 13) % 100))}%`,
+  top: `${Math.round(((i * 53 + 7) % 100))}%`,
+  size: Math.round((i % 3) + 1), // 1-3px
+  delay: i * 0.3,
+  duration: (i % 4) + 3, // 3-6s
+}));
+
 // ─── Section 1: Fullscreen Hero ──────────────────────────────
 function HeroSection() {
   const gradientRef = useRef<HTMLDivElement>(null);
@@ -87,12 +97,31 @@ function HeroSection() {
       />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-nv-black" />
 
+      {/* CSS-only star field */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        {STARS.map((star) => (
+          <div
+            key={star.id}
+            className="absolute rounded-full bg-nv-gold/20 animate-pulse"
+            style={{
+              left: star.left,
+              top: star.top,
+              width: star.size,
+              height: star.size,
+              animationDelay: `${star.delay}s`,
+              animationDuration: `${star.duration}s`,
+            }}
+          />
+        ))}
+      </div>
+
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center text-center px-4">
+        {/* Logo entrance — fades in first, before title */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           <Image
             src={LOGO_URL}
@@ -156,12 +185,12 @@ function HeroSection() {
         initial="hidden"
         animate="visible"
         transition={{ delay: 2, duration: 1 }}
-        className="absolute bottom-24 left-6 sm:left-8 font-mono-brand text-[10px] sm:text-xs text-nv-fog/60 tracking-wider"
+        className="absolute bottom-28 left-6 sm:left-8 font-mono-brand text-[10px] sm:text-xs text-nv-fog/60 tracking-wider"
       >
         02/22/2023 — 2:22PM
       </motion.p>
 
-      {/* Scroll Indicator */}
+      {/* Enhanced Scroll Indicator */}
       <motion.div
         variants={fadeIn}
         initial="hidden"
@@ -169,13 +198,18 @@ function HeroSection() {
         transition={{ delay: 2.5, duration: 1 }}
         className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
       >
-        <div className="w-px h-12 bg-gradient-to-b from-transparent via-nv-gold/50 to-transparent animate-scroll-pulse" />
-        <span
-          className="font-bebas text-[10px] tracking-[0.3em] text-nv-gold/50 -rotate-90 absolute top-8"
-          style={{ transformOrigin: 'center center' }}
-        >
+        <span className="font-bebas text-[10px] tracking-[0.3em] text-nv-gold/60">
           SCROLL
         </span>
+        <div className="relative flex flex-col items-center">
+          <div className="w-px h-10 bg-gradient-to-b from-nv-gold/60 to-nv-gold/10" />
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <ChevronDown size={14} className="text-nv-gold/60" strokeWidth={1.5} />
+          </motion.div>
+        </div>
       </motion.div>
     </section>
   );

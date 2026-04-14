@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, Menu, X } from 'lucide-react';
 import { useCartStore } from '@/lib/cart-store';
@@ -49,11 +50,61 @@ const mobileLinkVariants = {
   },
 };
 
+// Badge bounce animation
+const badgeVariants = {
+  initial: { scale: 0 },
+  animate: {
+    scale: 1,
+    transition: { type: 'spring', stiffness: 500, damping: 15 },
+  },
+  exit: {
+    scale: 0,
+    transition: { duration: 0.2 },
+  },
+  bounce: {
+    scale: [1, 1.4, 0.9, 1.1, 1],
+    transition: { duration: 0.4 },
+  },
+};
+
+// ─── Desktop Nav Link with active indicator + hover underline ───
+function DesktopNavLink({
+  href,
+  label,
+  isActive,
+}: {
+  href: string;
+  label: string;
+  isActive: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative font-bebas text-sm tracking-[0.2em] uppercase transition-colors duration-300 cursor-hover group ${
+        isActive ? 'text-nv-gold' : 'text-nv-white hover:text-nv-gold'
+      }`}
+    >
+      {/* Underline bar — slides in from left on hover, always visible when active */}
+      <span
+        className={`absolute -bottom-1.5 left-0 h-[2px] bg-nv-gold transition-all duration-300 ease-out ${
+          isActive
+            ? 'w-full opacity-100'
+            : 'w-0 opacity-0 group-hover:w-full group-hover:opacity-100'
+        }`}
+      />
+      {label}
+    </Link>
+  );
+}
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [badgeKey, setBadgeKey] = useState(0);
   const totalItems = useCartStore((s) => s.totalItems);
   const openCart = useCartStore((s) => s.openCart);
+  const pathname = usePathname();
+  const prevCountRef = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,6 +127,18 @@ export function Navbar() {
   }, [mobileOpen]);
 
   const count = totalItems();
+
+  // Bounce badge when count changes
+  useEffect(() => {
+    if (count !== prevCountRef.current) {
+      const id = requestAnimationFrame(() => {
+        setBadgeKey((k) => k + 1);
+      });
+      prevCountRef.current = count;
+      return () => cancelAnimationFrame(id);
+    }
+    return undefined;
+  }, [count]);
 
   return (
     <>
@@ -101,15 +164,22 @@ export function Navbar() {
 
           {/* Center — Desktop Nav Links */}
           <div className="hidden lg:flex items-center gap-8">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="font-bebas text-sm tracking-[0.2em] uppercase text-nv-white hover:text-nv-gold transition-colors duration-300 cursor-hover"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((link) => {
+              // Exact match for root, prefix match for others
+              const isActive =
+                link.href === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(link.href);
+
+              return (
+                <DesktopNavLink
+                  key={link.href}
+                  href={link.href}
+                  label={link.label}
+                  isActive={isActive}
+                />
+              );
+            })}
           </div>
 
           {/* Right — Cart + Mobile Toggle */}
@@ -121,11 +191,20 @@ export function Navbar() {
               aria-label="Open cart"
             >
               <ShoppingBag size={22} strokeWidth={1.5} />
-              {count > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-nv-gold text-nv-black text-[10px] font-bebas font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full leading-none">
-                  {count}
-                </span>
-              )}
+              <AnimatePresence mode="popLayout">
+                {count > 0 && (
+                  <motion.span
+                    key={`badge-${badgeKey}`}
+                    variants={badgeVariants}
+                    initial="initial"
+                    animate="bounce"
+                    exit="exit"
+                    className="absolute -top-0.5 -right-0.5 bg-nv-gold text-nv-black text-[10px] font-bebas font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full leading-none"
+                  >
+                    {count}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
 
             {/* Mobile Hamburger */}
@@ -150,6 +229,9 @@ export function Navbar() {
             animate="visible"
             exit="exit"
           >
+            {/* Gold gradient accent line at top */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-nv-gold to-transparent" />
+
             {/* Close Button */}
             <button
               onClick={() => setMobileOpen(false)}
@@ -164,17 +246,32 @@ export function Navbar() {
               className="flex flex-col items-center gap-6"
               variants={mobileMenuVariants}
             >
-              {NAV_LINKS.map((link) => (
-                <motion.div key={link.href} variants={mobileLinkVariants}>
-                  <Link
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="font-anton text-3xl sm:text-4xl tracking-[0.15em] uppercase text-nv-white hover:text-nv-gold transition-colors duration-300 cursor-hover"
-                  >
-                    {link.label}
-                  </Link>
-                </motion.div>
-              ))}
+              {NAV_LINKS.map((link) => {
+                const isActive =
+                  link.href === '/'
+                    ? pathname === '/'
+                    : pathname.startsWith(link.href);
+
+                return (
+                  <motion.div key={link.href} variants={mobileLinkVariants}>
+                    <Link
+                      href={link.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`font-anton text-3xl sm:text-4xl tracking-[0.15em] uppercase transition-colors duration-300 cursor-hover relative ${
+                        isActive
+                          ? 'text-nv-gold'
+                          : 'text-nv-white hover:text-nv-gold'
+                      }`}
+                    >
+                      {/* Active underline for mobile */}
+                      {isActive && (
+                        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-nv-gold" />
+                      )}
+                      {link.label}
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </motion.div>
 
             {/* Bottom tagline */}

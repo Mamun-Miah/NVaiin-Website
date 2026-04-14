@@ -2,10 +2,15 @@
 
 import { useState, FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Instagram } from 'lucide-react'
+import { Instagram, CheckCircle, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { RevealSection } from '@/components/animations/RevealSection'
 import { SplitTextReveal } from '@/components/animations/SplitTextReveal'
+
+const MAX_MESSAGE_LENGTH = 1000
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type EmailStatus = 'pristine' | 'valid' | 'invalid'
 
 export default function ContactPage() {
   const [formState, setFormState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
@@ -15,9 +20,40 @@ export default function ContactPage() {
     subject: '',
     message: '',
   })
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>('pristine')
+
+  const messageLength = formData.message.length
+  const messageCharPercent = (messageLength / MAX_MESSAGE_LENGTH) * 100
+
+  const validateEmail = (value: string): EmailStatus => {
+    if (value.length === 0) return 'pristine'
+    return EMAIL_REGEX.test(value) ? 'valid' : 'invalid'
+  }
+
+  const handleEmailBlur = () => {
+    setEmailStatus(validateEmail(formData.email))
+  }
+
+  const handleEmailChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, email: value }))
+    // Live-update checkmark but don't show error while typing
+    if (emailStatus !== 'pristine') {
+      const status = validateEmail(value)
+      // Only update to valid while typing, don't flash invalid during typing
+      if (status === 'valid') {
+        setEmailStatus('valid')
+      }
+    }
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+
+    // Validate email on submit
+    const emailVal = validateEmail(formData.email)
+    setEmailStatus(emailVal)
+    if (emailVal === 'invalid') return
+
     setFormState('submitting')
 
     try {
@@ -33,6 +69,7 @@ export default function ContactPage() {
 
       setFormState('success')
       setFormData({ name: '', email: '', subject: '', message: '' })
+      setEmailStatus('pristine')
       toast.success('Message sent successfully.')
     } catch {
       setFormState('error')
@@ -40,31 +77,28 @@ export default function ContactPage() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target
+    if (name === 'email') {
+      handleEmailChange(value)
+      return
+    }
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const inputClasses =
     'w-full bg-nv-smoke border border-nv-smoke text-nv-white font-mono-brand text-sm px-4 py-3 placeholder:text-nv-fog focus:border-nv-gold focus:outline-none transition-colors duration-200'
-  const labelClasses = 'font-bebas tracking-wider text-nv-fog text-sm uppercase block mb-2'
+  const labelClasses =
+    'font-bebas tracking-wider text-nv-fog text-sm uppercase block mb-2'
 
-  const socialLinks = [
-    {
-      href: 'https://instagram.com/nvaiin',
-      label: 'Instagram',
-      icon: 'instagram',
-    },
-    {
-      href: 'https://x.com/nvaiin',
-      label: 'X',
-      icon: 'x',
-    },
-    {
-      href: 'https://tiktok.com/@nvaiin',
-      label: 'TikTok',
-      icon: 'tiktok',
-    },
-  ]
+  const getEmailInputClasses = (): string => {
+    const base = inputClasses
+    if (emailStatus === 'invalid') return `${base} border-nv-red`
+    if (emailStatus === 'valid') return `${base} border-emerald-500`
+    return base
+  }
 
   return (
     <div className="min-h-screen bg-nv-black px-4 sm:px-6 lg:px-8 pt-32 pb-24">
@@ -116,7 +150,7 @@ export default function ContactPage() {
                     onClick={() => setFormState('idle')}
                     className="text-nv-fog font-mono-brand text-sm hover:text-nv-gold transition-colors duration-200 uppercase tracking-wider mt-4 cursor-hover"
                   >
-                    Send another message →
+                    Send another message &rarr;
                   </button>
                 </motion.div>
               ) : (
@@ -128,38 +162,65 @@ export default function ContactPage() {
                   onSubmit={handleSubmit}
                   className="flex flex-col gap-6"
                 >
-                  <div>
-                    <label htmlFor="name" className={labelClasses}>
-                      Name
-                    </label>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder="Your name"
-                      className={inputClasses}
-                    />
+                  {/* Name & Email — side by side on desktop */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="name" className={labelClasses}>
+                        Name
+                      </label>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={handleChange}
+                        placeholder="Your name"
+                        className={inputClasses}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className={labelClasses}>
+                        Email
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={handleChange}
+                          onBlur={handleEmailBlur}
+                          placeholder="your@email.com"
+                          className={getEmailInputClasses()}
+                          aria-invalid={emailStatus === 'invalid'}
+                        />
+                        {emailStatus === 'valid' && (
+                          <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                        )}
+                        {emailStatus === 'invalid' && (
+                          <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nv-red" />
+                        )}
+                      </div>
+                      <AnimatePresence>
+                        {emailStatus === 'invalid' && (
+                          <motion.p
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-nv-red font-mono-brand text-xs mt-1.5"
+                          >
+                            Please enter a valid email address
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="email" className={labelClasses}>
-                      Email
-                    </label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="your@email.com"
-                      className={inputClasses}
-                    />
-                  </div>
-
+                  {/* Subject — full width */}
                   <div>
                     <label htmlFor="subject" className={labelClasses}>
                       Subject
@@ -175,20 +236,48 @@ export default function ContactPage() {
                     />
                   </div>
 
+                  {/* Message — full width, taller */}
                   <div>
-                    <label htmlFor="message" className={labelClasses}>
-                      Message
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label htmlFor="message" className={labelClasses + ' mb-0'}>
+                        Message
+                      </label>
+                      <span
+                        className={`font-mono-brand text-xs transition-colors duration-200 ${
+                          messageLength >= MAX_MESSAGE_LENGTH
+                            ? 'text-nv-red'
+                            : messageLength >= MAX_MESSAGE_LENGTH * 0.8
+                              ? 'text-nv-gold'
+                              : 'text-nv-fog'
+                        }`}
+                      >
+                        {messageLength} / {MAX_MESSAGE_LENGTH} characters
+                      </span>
+                    </div>
                     <textarea
                       id="message"
                       name="message"
                       required
-                      rows={6}
+                      rows={8}
+                      maxLength={MAX_MESSAGE_LENGTH}
                       value={formData.message}
                       onChange={handleChange}
                       placeholder="Tell us what's on your mind..."
                       className={`${inputClasses} resize-none`}
                     />
+                    {/* Character progress bar */}
+                    <div className="mt-2 h-[2px] w-full bg-nv-smoke overflow-hidden rounded-full">
+                      <motion.div
+                        className={`h-full rounded-full transition-colors duration-200 ${
+                          messageLength >= MAX_MESSAGE_LENGTH
+                            ? 'bg-nv-red'
+                            : messageLength >= MAX_MESSAGE_LENGTH * 0.8
+                              ? 'bg-nv-gold'
+                              : 'bg-nv-gold/50'
+                        }`}
+                        style={{ width: `${Math.min(messageCharPercent, 100)}%` }}
+                      />
+                    </div>
                   </div>
 
                   {formState === 'error' && (
@@ -204,9 +293,45 @@ export default function ContactPage() {
                   <button
                     type="submit"
                     disabled={formState === 'submitting'}
-                    className="w-full bg-nv-gold text-nv-black font-anton tracking-wider text-base py-4 hover:bg-nv-white transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-hover"
+                    className="w-full bg-nv-gold text-nv-black font-anton tracking-wider text-base py-4 hover:bg-nv-white transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed cursor-hover flex items-center justify-center gap-3 min-h-[56px]"
                   >
-                    {formState === 'submitting' ? 'SENDING...' : 'SEND MESSAGE'}
+                    {formState === 'submitting' ? (
+                      <>
+                        {/* Three-dot loading animation */}
+                        <span className="flex items-center gap-1.5">
+                          <motion.span
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              delay: 0,
+                            }}
+                            className="inline-block w-2 h-2 bg-nv-black rounded-full"
+                          />
+                          <motion.span
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              delay: 0.2,
+                            }}
+                            className="inline-block w-2 h-2 bg-nv-black rounded-full"
+                          />
+                          <motion.span
+                            animate={{ opacity: [0.3, 1, 0.3] }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              delay: 0.4,
+                            }}
+                            className="inline-block w-2 h-2 bg-nv-black rounded-full"
+                          />
+                        </span>
+                        <span>SENDING</span>
+                      </>
+                    ) : (
+                      'SEND MESSAGE'
+                    )}
                   </button>
                 </motion.form>
               )}
@@ -214,8 +339,40 @@ export default function ContactPage() {
           </div>
         </RevealSection>
 
+        {/* Brand Info Section */}
+        <RevealSection direction="up" delay={0.35} className="mt-12">
+          <div className="border-t border-nv-smoke pt-10 pb-4">
+            <span className="font-bebas text-nv-gold text-xs tracking-[0.2em] block mb-6">
+              GET IN TOUCH
+            </span>
+
+            <div className="space-y-4">
+              <div>
+                <span className="font-mono-brand text-nv-gold text-sm tracking-wide">
+                  CONTACT@NVaiN.COM
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <p className="font-mono-brand text-nv-fog text-sm">
+                  We typically respond within 24 hours
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <span className="font-bebas text-nv-fog text-xs tracking-[0.2em] block">
+                  OFFICE HOURS
+                </span>
+                <p className="font-mono-brand text-nv-fog text-sm">
+                  MON &mdash; FRI, 9AM &mdash; 6PM EST
+                </p>
+              </div>
+            </div>
+          </div>
+        </RevealSection>
+
         {/* Social Links */}
-        <RevealSection direction="up" delay={0.4} className="mt-24 text-center">
+        <RevealSection direction="up" delay={0.4} className="mt-16 text-center">
           <h2 className="font-anton text-2xl md:text-3xl uppercase tracking-tight mb-3">
             FOLLOW THE MOVEMENT
           </h2>
@@ -257,13 +414,6 @@ export default function ContactPage() {
               </svg>
             </a>
           </div>
-        </RevealSection>
-
-        {/* Footer Note */}
-        <RevealSection direction="up" delay={0.5}>
-          <p className="text-center font-mono-brand text-nv-fog text-sm mt-12">
-            contact@nvaiin.com
-          </p>
         </RevealSection>
       </div>
     </div>

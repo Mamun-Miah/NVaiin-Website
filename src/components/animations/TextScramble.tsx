@@ -17,19 +17,18 @@ export function TextScramble({
   scrambleSpeed = 30,
   revealDelay = 50,
 }: TextScrambleProps) {
-  const [displayText, setDisplayText] = useState('');
+  // Start with the actual text on both server & client (avoids hydration mismatch)
+  // Client will scramble after mount
+  const [displayText, setDisplayText] = useState(text);
+  const [hasScrambled, setHasScrambled] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const previousText = useRef('');
+  const previousText = useRef(text);
 
   const getRandomChar = useCallback(() => {
     return CHARSET[Math.floor(Math.random() * CHARSET.length)];
   }, []);
 
-  useEffect(() => {
-    // Skip if text hasn't changed
-    if (text === previousText.current) return;
-    previousText.current = text;
-
+  const runScramble = useCallback(() => {
     // Clear any running interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -69,14 +68,27 @@ export function TextScramble({
 
       setDisplayText(result);
     }, revealDelay);
+  }, [text, revealDelay, getRandomChar]);
+
+  useEffect(() => {
+    // Only scramble after mount and if text changed
+    if (text === previousText.current && hasScrambled) return;
+    previousText.current = text;
+
+    // Small delay to ensure the real text is painted first
+    const timer = setTimeout(() => {
+      setHasScrambled(true);
+      runScramble();
+    }, 100);
 
     return () => {
+      clearTimeout(timer);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [text, revealDelay, getRandomChar]);
+  }, [text, runScramble, hasScrambled]);
 
   return (
     <span className={className} aria-label={text}>
