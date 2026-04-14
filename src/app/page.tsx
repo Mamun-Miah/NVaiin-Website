@@ -28,6 +28,10 @@ const LOOKBOOK_ITEMS = [
 
 const INSTAGRAM_IMAGES = [WHITE_TEE, BLACK_TEE, WHITE_TEE, BLACK_TEE, WHITE_TEE, BLACK_TEE];
 
+const WAVEFORM_HEIGHTS = Array.from({ length: 32 }, (_, i) =>
+  Math.round((Math.sin(i * 0.4) * 30 + Math.cos(i * 0.7) * 20 + 40) * 10) / 10
+);
+
 const STATS = [
   { value: '02.22.23', label: 'FOUNDED' },
   { value: '100%', label: 'CONSCIOUS' },
@@ -510,9 +514,7 @@ function MusicVibesSection() {
 
           {/* Waveform Decoration */}
           <div className="mt-6 flex items-end gap-[3px] h-10 justify-center md:justify-start">
-            {Array.from({ length: 32 }).map((_, i) => {
-              const h = Math.sin(i * 0.4) * 30 + Math.cos(i * 0.7) * 20 + 40;
-              return (
+            {WAVEFORM_HEIGHTS.map((h, i) => (
                 <div
                   key={i}
                   className={`w-[3px] rounded-full transition-colors duration-300 ${
@@ -520,8 +522,7 @@ function MusicVibesSection() {
                   }`}
                   style={{ height: `${h}%` }}
                 />
-              );
-            })}
+            ))}
           </div>
         </div>
       </div>
