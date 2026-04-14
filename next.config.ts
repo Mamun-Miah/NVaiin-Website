@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  allowedDevOrigins: ["https://preview-chat-7edb64e0-3d95-4048-a15e-fbe90e4a36f4.space.z.ai"],
   images: {
     remotePatterns: [
       {
