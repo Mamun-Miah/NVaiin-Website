@@ -12,7 +12,10 @@ import {
   Mail,
   User,
   Calendar,
-  Save,
+  MapPin,
+  Copy,
+  Check,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface OrderItemWithProduct {
@@ -32,7 +35,7 @@ interface Order {
   id: string;
   customerName: string;
   email: string;
-  address: Record<string, string>;
+  address: string | Record<string, string>;
   items: OrderItemWithProduct[];
   total: number;
   status: string;
@@ -60,6 +63,23 @@ const STATUS_COLORS: Record<string, string> = {
   refunded: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
+// Normal progression path
+const NORMAL_FLOW = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+// Terminal states
+const TERMINAL_STATES = new Set(['cancelled', 'refunded', 'delivered']);
+
+function StatusBadge({ status, large }: { status: string; large?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center font-bebas tracking-wider border rounded-sm ${
+        large ? 'text-sm px-3 py-1.5' : 'text-xs px-2.5 py-1'
+      } ${STATUS_COLORS[status] || STATUS_COLORS.pending}`}
+    >
+      {status.toUpperCase()}
+    </span>
+  );
+}
+
 function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr);
@@ -68,12 +88,157 @@ function formatDate(dateStr: string): string {
       month: 'long',
       day: 'numeric',
       year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatDateTime(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
   } catch {
     return dateStr;
   }
+}
+
+function parseAddress(address: string | Record<string, string>): Record<string, string> {
+  if (!address) return {};
+  if (typeof address === 'object') return address;
+  try {
+    const parsed = JSON.parse(address);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// Status Timeline Component
+function StatusTimeline({ currentStatus }: { currentStatus: string }) {
+  const isCancelled = currentStatus === 'cancelled';
+  const isRefunded = currentStatus === 'refunded';
+  const isTerminal = isCancelled || isRefunded;
+
+  // Build the timeline steps
+  const steps: { key: string; label: string; completed: boolean; current: boolean; isBreak?: boolean }[] = [];
+
+  if (isTerminal) {
+    // Show normal flow up to where it was, then cancelled/refunded
+    const normalIdx = NORMAL_FLOW.indexOf(currentStatus);
+    for (let i = 0; i < NORMAL_FLOW.length; i++) {
+      const s = NORMAL_FLOW[i];
+      steps.push({
+        key: s,
+        label: s.charAt(0).toUpperCase() + s.slice(1),
+        completed: false,
+        current: false,
+      });
+    }
+    // Add cancelled/refunded as terminal
+    steps.push({
+      key: currentStatus,
+      label: currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1),
+      completed: true,
+      current: false,
+      isBreak: true,
+    });
+  } else {
+    // Normal flow
+    const currentIdx = NORMAL_FLOW.indexOf(currentStatus);
+    for (let i = 0; i < NORMAL_FLOW.length; i++) {
+      const s = NORMAL_FLOW[i];
+      steps.push({
+        key: s,
+        label: s.charAt(0).toUpperCase() + s.slice(1),
+        completed: i < currentIdx,
+        current: i === currentIdx,
+      });
+    }
+  }
+
+  return (
+    <div className="bg-nv-concrete border border-nv-smoke p-6">
+      <h3 className="font-bebas tracking-wider text-nv-gold text-sm uppercase mb-6">
+        ORDER TIMELINE
+      </h3>
+      <div className="relative">
+        {/* Vertical line */}
+        <div
+          className={`absolute left-[11px] top-2 bottom-2 w-0.5 ${
+            isTerminal ? 'bg-red-500/30' : 'bg-nv-gold/30'
+          }`}
+        />
+
+        <div className="space-y-0">
+          {steps.map((step, idx) => {
+            const dotColor = step.completed
+              ? isTerminal && step.isBreak
+                ? 'bg-nv-red border-nv-red'
+                : 'bg-nv-gold border-nv-gold'
+              : step.current
+              ? 'bg-nv-gold border-nv-gold'
+              : 'bg-nv-black border-nv-fog';
+
+            const lineColor =
+              step.completed && !step.isBreak
+                ? isTerminal
+                  ? 'bg-red-500/30'
+                  : 'bg-nv-gold/50'
+                : 'bg-transparent';
+
+            return (
+              <div key={step.key} className="relative flex items-start gap-4 pb-6 last:pb-0">
+                {/* Dot */}
+                <div className="relative z-10 mt-0.5">
+                  {step.completed ? (
+                    <div className={`w-6 h-6 rounded-full ${dotColor} flex items-center justify-center border-2`}>
+                      <Check className="h-3 w-3 text-nv-black" />
+                    </div>
+                  ) : step.current ? (
+                    <div className="relative">
+                      <div className={`w-6 h-6 rounded-full ${dotColor} border-2`} />
+                      <div className="absolute inset-0 w-6 h-6 rounded-full bg-nv-gold/30 animate-ping" />
+                    </div>
+                  ) : (
+                    <div className={`w-6 h-6 rounded-full ${dotColor} border-2`} />
+                  )}
+                </div>
+
+                {/* Label */}
+                <div className="pt-0.5">
+                  <p
+                    className={`font-bebas tracking-wider text-sm uppercase ${
+                      step.current
+                        ? 'text-nv-gold'
+                        : step.completed
+                        ? isTerminal && step.isBreak
+                          ? 'text-nv-red'
+                          : 'text-nv-white'
+                        : 'text-nv-fog'
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+                  {step.current && (
+                    <p className="font-mono-brand text-xs text-nv-gold/70 mt-0.5">
+                      Current status
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function OrderDetailPage({
@@ -87,6 +252,8 @@ export default function OrderDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [newStatus, setNewStatus] = useState<string>('');
+  const [copiedId, setCopiedId] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -94,6 +261,7 @@ export default function OrderDetailPage({
       if (!res.ok) throw new Error('Failed to fetch order');
       const data = await res.json();
       setOrder(data);
+      setNewStatus(data.status);
     } catch (err) {
       console.error('Error fetching order:', err);
       setError('Failed to load order');
@@ -106,7 +274,17 @@ export default function OrderDetailPage({
     fetchOrder();
   }, [fetchOrder]);
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleCopyId = () => {
+    if (order) {
+      navigator.clipboard.writeText(order.id).catch(() => {});
+      setCopiedId(true);
+      requestAnimationFrame(() => {
+        setTimeout(() => setCopiedId(false), 2000);
+      });
+    }
+  };
+
+  const handleStatusChange = async () => {
     if (!order || newStatus === order.status) return;
     setStatusUpdating(true);
 
@@ -128,35 +306,37 @@ export default function OrderDetailPage({
     }
   };
 
+  const parsedAddress = order ? parseAddress(order.address) : {};
   const inputClass =
-    'w-full bg-nv-smoke border border-nv-smoke text-nv-white font-mono-brand text-sm px-4 py-3 focus:outline-none focus:border-nv-gold transition-colors placeholder:text-nv-fog/50';
-  const labelClass = 'block font-bebas tracking-wider text-nv-fog text-sm uppercase mb-2';
+    'w-full bg-nv-smoke border border-nv-smoke text-nv-white font-mono-brand text-sm px-4 py-3 focus:outline-none focus:border-nv-gold transition-colors placeholder:text-nv-fog/50 rounded-sm';
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-nv-black p-4 md:p-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="h-5 w-5 bg-nv-smoke animate-pulse" />
-            <div className="h-10 w-48 bg-nv-smoke animate-pulse" />
-          </div>
-          <div className="bg-nv-concrete border border-nv-smoke p-6 md:p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="h-4 w-24 bg-nv-smoke animate-pulse rounded" />
-                  <div className="h-10 w-full bg-nv-smoke animate-pulse rounded" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="h-5 w-5 bg-nv-smoke animate-pulse rounded" />
+          <div className="h-10 w-48 bg-nv-smoke animate-pulse rounded" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-nv-concrete border border-nv-smoke p-6 space-y-4 animate-pulse">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="h-16 w-16 bg-nv-smoke rounded flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-3/4 bg-nv-smoke rounded" />
+                    <div className="h-3 w-1/2 bg-nv-smoke rounded" />
+                  </div>
                 </div>
               ))}
             </div>
-            <div className="h-px bg-nv-smoke" />
+          </div>
+          <div className="space-y-6">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex gap-4 animate-pulse">
-                <div className="h-16 w-16 bg-nv-smoke rounded flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-3/4 bg-nv-smoke rounded" />
-                  <div className="h-3 w-1/2 bg-nv-smoke rounded" />
-                </div>
+              <div key={i} className="bg-nv-concrete border border-nv-smoke p-6 space-y-3 animate-pulse">
+                <div className="h-4 w-24 bg-nv-smoke rounded" />
+                <div className="h-4 w-full bg-nv-smoke rounded" />
+                <div className="h-4 w-3/4 bg-nv-smoke rounded" />
               </div>
             ))}
           </div>
@@ -167,102 +347,324 @@ export default function OrderDetailPage({
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-nv-black p-4 md:p-8">
-        <div className="max-w-3xl mx-auto flex flex-col items-center justify-center gap-4 py-24">
-          <Package className="h-16 w-16 text-nv-fog" />
-          <p className="font-mono-brand text-nv-fog text-sm">{error || 'Order not found'}</p>
-          <Link
-            href="/admin/orders"
-            className="font-bebas tracking-wider text-nv-gold hover:underline"
-          >
-            Back to Orders
-          </Link>
-        </div>
+      <div className="flex flex-col items-center justify-center gap-4 py-24">
+        <Package className="h-16 w-16 text-nv-fog" />
+        <p className="font-mono-brand text-nv-fog text-sm">{error || 'Order not found'}</p>
+        <Link
+          href="/admin/orders"
+          className="font-bebas tracking-wider text-nv-gold hover:underline"
+        >
+          Back to Orders
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-nv-black p-4 md:p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-3xl mx-auto"
-      >
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/orders"
-              className="text-nv-fog hover:text-nv-white transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="font-anton text-3xl md:text-4xl text-nv-white uppercase tracking-tight">
-                Order Details
-              </h1>
-              <p className="font-mono-brand text-nv-fog text-sm mt-0.5">
-                #{order.id}
-              </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push('/admin/orders')}
+            className="text-nv-fog hover:text-nv-white transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="font-anton text-2xl md:text-3xl text-nv-white uppercase tracking-wider">
+              ORDER #{order.id.slice(0, 8)}
+            </h1>
+            <p className="font-mono-brand text-nv-fog text-sm mt-0.5">
+              {formatDateTime(order.createdAt)}
+            </p>
+          </div>
+        </div>
+        <StatusBadge status={order.status} large />
+      </div>
+
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (2/3) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Order Items Table */}
+          <div className="bg-nv-concrete border border-nv-smoke overflow-hidden">
+            <div className="p-4 border-b border-nv-smoke">
+              <h2 className="font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                ORDER ITEMS ({order.items.length})
+              </h2>
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden sm:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-nv-smoke">
+                    <th className="p-4 text-left font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                      Product
+                    </th>
+                    <th className="p-4 text-left font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                      Size
+                    </th>
+                    <th className="p-4 text-center font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                      Qty
+                    </th>
+                    <th className="p-4 text-right font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                      Price
+                    </th>
+                    <th className="p-4 text-right font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-nv-smoke hover:bg-nv-smoke/20 transition-colors"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {item.product?.images?.[0] && (
+                            <div className="h-12 w-12 bg-nv-smoke overflow-hidden flex-shrink-0 rounded-sm">
+                              <Image
+                                src={item.product.images[0]}
+                                alt={item.product.name || 'Product'}
+                                width={48}
+                                height={48}
+                                className="h-12 w-12 object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          )}
+                          {item.product?.slug ? (
+                            <Link
+                              href={`/shop/${item.product.slug}`}
+                              className="font-mono-brand text-nv-white text-sm hover:text-nv-gold transition-colors"
+                            >
+                              {item.product?.name || `Product #${item.productId.slice(0, 8)}`}
+                            </Link>
+                          ) : (
+                            <span className="font-mono-brand text-nv-white text-sm">
+                              {item.product?.name || `Product #${item.productId.slice(0, 8)}`}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="font-mono-brand text-nv-fog text-sm">
+                          {item.size || '—'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="font-mono-brand text-nv-white text-sm">
+                          {item.qty}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <span className="font-mono-brand text-nv-white text-sm">
+                          ${item.price.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <span className="font-mono-brand text-nv-white text-sm font-medium">
+                          ${(item.price * item.qty).toFixed(2)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-nv-gold/30">
+                    <td colSpan={4} className="p-4 text-right">
+                      <span className="font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                        Order Total
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <span className="font-anton text-2xl text-nv-gold">
+                        ${(order.total || 0).toFixed(2)}
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden divide-y divide-nv-smoke">
+              {order.items.map((item) => (
+                <div key={item.id} className="p-4 space-y-3">
+                  <div className="flex gap-3">
+                    {item.product?.images?.[0] && (
+                      <div className="h-16 w-16 bg-nv-smoke overflow-hidden flex-shrink-0 rounded-sm">
+                        <Image
+                          src={item.product.images[0]}
+                          alt={item.product.name || 'Product'}
+                          width={64}
+                          height={64}
+                          className="h-16 w-16 object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono-brand text-nv-white text-sm font-medium truncate">
+                        {item.product?.name || `Product #${item.productId.slice(0, 8)}`}
+                      </p>
+                      <p className="font-mono-brand text-nv-fog text-xs mt-0.5">
+                        Size: {item.size || '—'} · Qty: {item.qty}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-mono-brand text-nv-white text-sm">
+                        ${(item.price * item.qty).toFixed(2)}
+                      </p>
+                      <p className="font-mono-brand text-nv-fog text-xs">
+                        @ ${item.price.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="p-4 border-t border-nv-gold/30 flex justify-between items-center">
+                <span className="font-bebas tracking-wider text-nv-fog text-sm uppercase">
+                  Order Total
+                </span>
+                <span className="font-anton text-2xl text-nv-gold">
+                  ${(order.total || 0).toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
-          <span
-            className={`inline-flex items-center font-bebas text-xs px-3 py-1.5 tracking-wider border ${
-              STATUS_COLORS[order.status] || STATUS_COLORS.pending
-            }`}
-          >
-            {statusUpdating && (
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-            )}
-            {order.status.toUpperCase()}
-          </span>
+
+          {/* Status Timeline */}
+          <StatusTimeline currentStatus={order.status} />
         </div>
 
-        {/* Order Info Card */}
-        <div className="bg-nv-concrete border border-nv-smoke p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Customer Name */}
-            <div>
-              <label className={labelClass}>
-                <User className="h-3.5 w-3.5 inline mr-1.5" />
-                Customer
-              </label>
-              <p className="font-mono-brand text-nv-white text-sm">
-                {order.customerName || '—'}
-              </p>
+        {/* Right Column (1/3) */}
+        <div className="space-y-6">
+          {/* Customer Info Card */}
+          <div className="bg-nv-concrete border border-nv-smoke p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <User className="h-4 w-4 text-nv-gold" />
+              <h3 className="font-bebas tracking-wider text-nv-gold text-sm uppercase">
+                CUSTOMER
+              </h3>
             </div>
-
-            {/* Email */}
-            <div>
-              <label className={labelClass}>
-                <Mail className="h-3.5 w-3.5 inline mr-1.5" />
-                Email
-              </label>
-              <p className="font-mono-brand text-nv-white text-sm">
-                {order.email || '—'}
-              </p>
+            <div className="space-y-3">
+              <div>
+                <p className="font-mono-brand text-nv-fog text-xs uppercase mb-1">Name</p>
+                <p className="font-mono-brand text-nv-white text-sm">
+                  {order.customerName || '—'}
+                </p>
+              </div>
+              <div>
+                <p className="font-mono-brand text-nv-fog text-xs uppercase mb-1">Email</p>
+                {order.email ? (
+                  <a
+                    href={`mailto:${order.email}`}
+                    className="font-mono-brand text-nv-gold text-sm hover:underline"
+                  >
+                    {order.email}
+                  </a>
+                ) : (
+                  <p className="font-mono-brand text-nv-white text-sm">—</p>
+                )}
+              </div>
+              {parsedAddress.phone && (
+                <div>
+                  <p className="font-mono-brand text-nv-fog text-xs uppercase mb-1">Phone</p>
+                  <p className="font-mono-brand text-nv-white text-sm">
+                    {parsedAddress.phone}
+                  </p>
+                </div>
+              )}
             </div>
+          </div>
 
-            {/* Date */}
-            <div>
-              <label className={labelClass}>
-                <Calendar className="h-3.5 w-3.5 inline mr-1.5" />
-                Date
-              </label>
-              <p className="font-mono-brand text-nv-white text-sm">
-                {formatDate(order.createdAt)}
-              </p>
+          {/* Shipping Address Card */}
+          <div className="bg-nv-concrete border border-nv-smoke p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="h-4 w-4 text-nv-gold" />
+              <h3 className="font-bebas tracking-wider text-nv-gold text-sm uppercase">
+                SHIPPING ADDRESS
+              </h3>
             </div>
+            {Object.keys(parsedAddress).length > 0 ? (
+              <div className="font-mono-brand text-nv-white text-sm space-y-1">
+                {parsedAddress.name && parsedAddress.name !== order.customerName && (
+                  <p>{parsedAddress.name}</p>
+                )}
+                {parsedAddress.street && <p>{parsedAddress.street}</p>}
+                {(parsedAddress.city || parsedAddress.state) && (
+                  <p>
+                    {[parsedAddress.city, parsedAddress.state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {parsedAddress.zip && <p>{parsedAddress.zip}</p>}
+                {parsedAddress.country && <p>{parsedAddress.country}</p>}
+              </div>
+            ) : (
+              <p className="font-mono-brand text-nv-fog text-sm">No address provided</p>
+            )}
+          </div>
 
-            {/* Status */}
-            <div>
-              <label className={labelClass}>Status</label>
+          {/* Order Info Card */}
+          <div className="bg-nv-concrete border border-nv-smoke p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="h-4 w-4 text-nv-gold" />
+              <h3 className="font-bebas tracking-wider text-nv-gold text-sm uppercase">
+                ORDER INFO
+              </h3>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="font-mono-brand text-nv-fog text-xs uppercase mb-1">Date Created</p>
+                <p className="font-mono-brand text-nv-white text-sm">
+                  {formatDate(order.createdAt)}
+                </p>
+              </div>
+              <div>
+                <p className="font-mono-brand text-nv-fog text-xs uppercase mb-1">Order ID</p>
+                <button
+                  onClick={handleCopyId}
+                  className="flex items-center gap-2 font-mono-brand text-nv-white text-sm hover:text-nv-gold transition-colors cursor-pointer group"
+                >
+                  <span className="truncate max-w-[200px]">{order.id}</span>
+                  {copiedId ? (
+                    <Check className="h-3.5 w-3.5 text-nv-gold flex-shrink-0" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-nv-fog group-hover:text-nv-gold flex-shrink-0" />
+                  )}
+                </button>
+              </div>
+              {order.notes && (
+                <div>
+                  <p className="font-mono-brand text-nv-fog text-xs uppercase mb-1">Notes</p>
+                  <p className="font-mono-brand text-nv-white text-sm whitespace-pre-line">
+                    {order.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Status Update Card */}
+          <div className="bg-nv-concrete border border-nv-smoke p-6">
+            <h3 className="font-bebas tracking-wider text-nv-gold text-sm uppercase mb-4">
+              UPDATE STATUS
+            </h3>
+            <div className="space-y-4">
               <div className="relative">
                 <select
-                  value={order.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
                   disabled={statusUpdating}
                   className={`${inputClass} appearance-none pr-10 cursor-pointer disabled:opacity-50`}
                 >
@@ -278,185 +680,24 @@ export default function OrderDetailPage({
                   </svg>
                 </div>
               </div>
-            </div>
-
-            {/* Address */}
-            {order.address && Object.keys(order.address).length > 0 && (
-              <div className="md:col-span-2">
-                <label className={labelClass}>Shipping Address</label>
-                <p className="font-mono-brand text-nv-white text-sm whitespace-pre-line">
-                  {Object.values(order.address).filter(Boolean).join('\n') || '—'}
-                </p>
-              </div>
-            )}
-
-            {/* Notes */}
-            <div className="md:col-span-2">
-              <label className={labelClass}>Notes</label>
-              <textarea
-                rows={3}
-                value={order.notes}
-                readOnly
-                className={`${inputClass} resize-vertical`}
-                placeholder="No notes..."
-              />
+              <button
+                onClick={handleStatusChange}
+                disabled={statusUpdating || newStatus === order.status}
+                className="w-full bg-nv-gold text-nv-black font-anton text-sm tracking-wider uppercase py-3 hover:bg-nv-gold/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 rounded-sm"
+              >
+                {statusUpdating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    UPDATING...
+                  </>
+                ) : (
+                  'UPDATE STATUS'
+                )}
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Line Items */}
-        <div className="bg-nv-concrete border border-nv-smoke overflow-hidden mb-6">
-          <div className="p-4 border-b border-nv-smoke">
-            <h2 className="font-bebas tracking-wider text-nv-fog text-sm uppercase">
-              Line Items ({order.items.length})
-            </h2>
-          </div>
-
-          {/* Desktop Table */}
-          <div className="hidden sm:block">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-nv-smoke">
-                  <th className="p-4 text-left font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                    Product
-                  </th>
-                  <th className="p-4 text-left font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                    Size
-                  </th>
-                  <th className="p-4 text-center font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                    Qty
-                  </th>
-                  <th className="p-4 text-right font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                    Price
-                  </th>
-                  <th className="p-4 text-right font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.items.map((item, idx) => (
-                  <tr
-                    key={item.id}
-                    className={`border-b border-nv-smoke ${
-                      idx % 2 === 0 ? 'bg-transparent' : 'bg-nv-smoke/30'
-                    }`}
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        {item.product?.images?.[0] && (
-                          <div className="h-12 w-12 bg-nv-smoke overflow-hidden flex-shrink-0">
-                            <Image
-                              src={item.product.images[0]}
-                              alt={item.product.name || 'Product'}
-                              width={48}
-                              height={48}
-                              className="h-12 w-12 object-cover"
-                              unoptimized
-                            />
-                          </div>
-                        )}
-                        <span className="font-mono-brand text-nv-white text-sm">
-                          {item.product?.name || `Product #${item.productId.slice(0, 8)}`}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="font-mono-brand text-nv-fog text-sm">
-                        {item.size || '—'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-center">
-                      <span className="font-mono-brand text-nv-white text-sm">
-                        {item.qty}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <span className="font-mono-brand text-nv-white text-sm">
-                        ${item.price.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <span className="font-mono-brand text-nv-white text-sm font-medium">
-                        ${(item.price * item.qty).toFixed(2)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-nv-gold/30">
-                  <td colSpan={4} className="p-4 text-right">
-                    <span className="font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                      Order Total
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <span className="font-anton text-2xl text-nv-gold">
-                      ${order.total.toFixed(2)}
-                    </span>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="sm:hidden divide-y divide-nv-smoke">
-            {order.items.map((item) => (
-              <div key={item.id} className="p-4 space-y-3">
-                <div className="flex gap-3">
-                  {item.product?.images?.[0] && (
-                    <div className="h-16 w-16 bg-nv-smoke overflow-hidden flex-shrink-0">
-                      <Image
-                        src={item.product.images[0]}
-                        alt={item.product.name || 'Product'}
-                        width={64}
-                        height={64}
-                        className="h-16 w-16 object-cover"
-                        unoptimized
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono-brand text-nv-white text-sm font-medium truncate">
-                      {item.product?.name || `Product #${item.productId.slice(0, 8)}`}
-                    </p>
-                    <p className="font-mono-brand text-nv-fog text-xs mt-0.5">
-                      Size: {item.size || '—'} · Qty: {item.qty}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-mono-brand text-nv-white text-sm">
-                      ${(item.price * item.qty).toFixed(2)}
-                    </p>
-                    <p className="font-mono-brand text-nv-fog text-xs">
-                      @ ${item.price.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="p-4 border-t border-nv-gold/30 flex justify-between items-center">
-              <span className="font-bebas tracking-wider text-nv-fog text-sm uppercase">
-                Order Total
-              </span>
-              <span className="font-anton text-2xl text-nv-gold">
-                ${order.total.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Back Button */}
-        <Link
-          href="/admin/orders"
-          className="inline-flex items-center gap-2 font-bebas tracking-wider text-nv-fog text-sm hover:text-nv-gold transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Orders
-        </Link>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }
