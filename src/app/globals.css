@@ -68,7 +68,6 @@
     @apply border-border outline-ring/50;
   }
   html {
-    cursor: none;
     scrollbar-width: thin;
     scrollbar-color: #C9A84C #0A0A0A;
   }

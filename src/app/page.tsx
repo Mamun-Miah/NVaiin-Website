@@ -90,12 +90,23 @@ function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center bg-nv-black overflow-hidden">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover opacity-50 pointer-events-none"
+      >
+        <source src="/video.mov" />
+      </video>
+
       {/* Background gradient — GSAP parallax */}
       <div
         ref={gradientRef}
-        className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(201,168,76,0.06)_0%,transparent_70%)]"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(201,168,76,0.06)_0%,transparent_70%)] pointer-events-none"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-nv-black" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-nv-black pointer-events-none" />
 
       {/* CSS-only star field */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -472,6 +483,16 @@ function MusicVibesSection() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [scrambleActive, setScrambleActive] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play();
+    } else {
+      audioRef.current.pause();
+    }
+  };
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -495,6 +516,7 @@ function MusicVibesSection() {
         ref={sectionRef}
         className="py-16 sm:py-24 bg-nv-black border-y border-nv-smoke"
       >
+        <audio ref={audioRef} src="/song.mp3" loop onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
         <div className="max-w-4xl mx-auto px-4 sm:px-8 flex flex-col md:flex-row items-center gap-8 sm:gap-12">
           {/* Vinyl Record */}
           <div className="relative flex-shrink-0">
@@ -530,7 +552,7 @@ function MusicVibesSection() {
             {/* Controls */}
             <div className="mt-6 flex items-center gap-4 justify-center md:justify-start">
               <button
-                onClick={() => setIsPlaying(!isPlaying)}
+                onClick={togglePlay}
                 className="flex items-center gap-2 font-bebas text-sm tracking-[0.2em] text-nv-gold border border-nv-gold px-6 py-2 hover:bg-nv-gold hover:text-nv-black transition-all duration-300 cursor-hover"
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >

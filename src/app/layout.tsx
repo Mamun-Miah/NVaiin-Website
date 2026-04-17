@@ -3,7 +3,6 @@ import { Anton, Bebas_Neue, Space_Mono, Syne } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { GrainOverlay } from "@/components/layout/GrainOverlay";
-import { CustomCursor } from "@/components/layout/CustomCursor";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
@@ -81,7 +80,6 @@ export default function RootLayout({
           </div>
           <CartDrawer />
           <GrainOverlay />
-          <CustomCursor />
         </Providers>
       </body>
     </html>

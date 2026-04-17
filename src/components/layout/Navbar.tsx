@@ -80,17 +80,15 @@ function DesktopNavLink({
   return (
     <Link
       href={href}
-      className={`relative font-bebas text-sm tracking-[0.2em] uppercase transition-colors duration-300 cursor-hover group ${
-        isActive ? 'text-nv-gold' : 'text-nv-white hover:text-nv-gold'
-      }`}
+      className={`relative font-bebas text-sm tracking-[0.2em] uppercase transition-colors duration-300 cursor-hover group ${isActive ? 'text-nv-gold' : 'text-nv-white hover:text-nv-gold'
+        }`}
     >
       {/* Underline bar — slides in from left on hover, always visible when active */}
       <span
-        className={`absolute -bottom-1.5 left-0 h-[2px] bg-nv-gold transition-all duration-300 ease-out ${
-          isActive
-            ? 'w-full opacity-100'
-            : 'w-0 opacity-0 group-hover:w-full group-hover:opacity-100'
-        }`}
+        className={`absolute -bottom-1.5 left-0 h-[2px] bg-nv-gold transition-all duration-300 ease-out ${isActive
+          ? 'w-full opacity-100'
+          : 'w-0 opacity-0 group-hover:w-full group-hover:opacity-100'
+          }`}
       />
       {label}
     </Link>
@@ -143,14 +141,13 @@ export function Navbar() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? 'bg-nv-black/95 backdrop-blur-md shadow-lg shadow-black/20'
-            : 'bg-transparent'
-        }`}
+        className={` top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
+          ? 'bg-nv-black/95 backdrop-blur-md shadow-lg shadow-black/20'
+          : 'bg-transparent'
+          }`}
       >
         {/* Account for announcement bar height */}
-        <nav className="flex items-center justify-between px-4 sm:px-6 lg:px-10 h-16 lg:h-20">
+        <nav className="flex items-center justify-between mt-[5px] px-4 sm:px-6 lg:px-10 h-16 lg:h-16">
           {/* Left — Logo */}
           <Link href="/" className="flex items-center cursor-hover">
             <img
@@ -257,11 +254,10 @@ export function Navbar() {
                     <Link
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`font-anton text-3xl sm:text-4xl tracking-[0.15em] uppercase transition-colors duration-300 cursor-hover relative ${
-                        isActive
-                          ? 'text-nv-gold'
-                          : 'text-nv-white hover:text-nv-gold'
-                      }`}
+                      className={`font-anton text-3xl sm:text-4xl tracking-[0.15em] uppercase transition-colors duration-300 cursor-hover relative ${isActive
+                        ? 'text-nv-gold'
+                        : 'text-nv-white hover:text-nv-gold'
+                        }`}
                     >
                       {/* Active underline for mobile */}
                       {isActive && (
